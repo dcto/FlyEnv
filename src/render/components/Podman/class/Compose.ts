@@ -4,6 +4,7 @@ import { I18nT } from '@lang/index'
 import { XTermExec, XTermExecCache } from '@/util/XTermExec'
 import { AsyncComponentShow } from '@/util/AsyncComponent'
 import { reactiveBind } from '@/util/Index'
+import { PodmanManager } from '@/components/Podman/class/Podman'
 
 export class Compose {
   id: string = ''
@@ -19,7 +20,6 @@ export class Compose {
 
   constructor(obj: any) {
     Object.assign(this, obj)
-    this.run = false
     this.running = false
     this.statusError = undefined
   }
@@ -31,30 +31,14 @@ export class Compose {
       'app-fork:podman',
       'composeStart',
       JSON.parse(JSON.stringify(this.paths)),
-      this.flag
+      this.flag,
+      PodmanManager.currentSocket
     ).then((key: string, res: any) => {
       IPC.off(key)
       if (res?.code === 0) {
         this.run = true
       } else {
         MessageError(res?.msg ?? I18nT('base.fail'))
-      }
-      this.running = false
-    })
-  }
-
-  checkStatusAfterTerminalExec() {
-    IPC.send(
-      'app-fork:podman',
-      'isComposeRunning',
-      JSON.parse(JSON.stringify(this.paths)),
-      this.flag
-    ).then((key: string, res: any) => {
-      IPC.off(key)
-      if (res?.code === 0) {
-        this.run = res.data
-      } else {
-        this.statusError = res?.msg ?? I18nT('base.fail')
       }
       this.running = false
     })
@@ -69,7 +53,7 @@ export class Compose {
             title: I18nT('podman.StartWithTerminal'),
             item: xtermExec
           }).then(() => {
-            this.checkStatusAfterTerminalExec()
+            this.checkRunningStatus()
           })
         })
       }
@@ -85,10 +69,16 @@ export class Compose {
       }
       const logs: string[] = [...arr, 'logs']
       arr.push('up -d')
-      xtermExec.cammand = [arr.join(' '), logs.join(' ')]
+      const cammand = [arr.join(' '), logs.join(' ')]
+      if (window.Server.isLinux || window.Server.isMacOS) {
+        const socket = PodmanManager.currentSocket()
+        cammand.unshift(`export DOCKER_HOST=unix://${socket}`)
+      }
+      xtermExec.cammand = cammand
       xtermExec.wait().then(() => {
         delete XTermExecCache?.[this.id]
-        this.checkStatusAfterTerminalExec()
+        this.checkRunningStatus()
+        this.running = false
       })
       XTermExecCache[this.id] = xtermExec
     }
@@ -97,7 +87,7 @@ export class Compose {
         title: I18nT('podman.StartWithTerminal'),
         item: xtermExec
       }).then(() => {
-        this.checkStatusAfterTerminalExec()
+        this.checkRunningStatus()
       })
     })
   }
@@ -111,7 +101,7 @@ export class Compose {
             title: I18nT('podman.StopWithTerminal'),
             item: xtermExec
           }).then(() => {
-            this.checkStatusAfterTerminalExec()
+            this.checkRunningStatus()
           })
         })
       }
@@ -127,10 +117,18 @@ export class Compose {
       }
       const logs: string[] = [...arr, 'logs']
       arr.push('down')
-      xtermExec.cammand = [arr.join(' '), logs.join(' ')]
+
+      const cammand = [arr.join(' '), logs.join(' ')]
+      if (window.Server.isLinux || window.Server.isMacOS) {
+        const socket = PodmanManager.currentSocket()
+        cammand.unshift(`export DOCKER_HOST=unix://${socket}`)
+      }
+      xtermExec.cammand = cammand
+
       xtermExec.wait().then(() => {
         delete XTermExecCache?.[this.id]
-        this.checkStatusAfterTerminalExec()
+        this.checkRunningStatus()
+        this.running = false
       })
       XTermExecCache[this.id] = xtermExec
     }
@@ -139,7 +137,7 @@ export class Compose {
         title: I18nT('podman.StopWithTerminal'),
         item: xtermExec
       }).then(() => {
-        this.checkStatusAfterTerminalExec()
+        this.checkRunningStatus()
       })
     })
   }
@@ -154,7 +152,14 @@ export class Compose {
         arr.push(`-p ${this.flag}`)
       }
       arr.push('logs -f')
-      xtermExec.cammand = [arr.join(' ')]
+
+      const cammand = [arr.join(' ')]
+      if (window.Server.isLinux || window.Server.isMacOS) {
+        const socket = PodmanManager.currentSocket()
+        cammand.unshift(`export DOCKER_HOST=unix://${socket}`)
+      }
+      xtermExec.cammand = cammand
+
       xtermExec.wait().then(() => {
         delete XTermExecCache?.[key]
       })
@@ -176,7 +181,8 @@ export class Compose {
       'app-fork:podman',
       'composeStop',
       JSON.parse(JSON.stringify(this.paths)),
-      this.flag
+      this.flag,
+      PodmanManager.currentSocket()
     ).then((key: string, res: any) => {
       IPC.off(key)
       if (res?.code === 0) {
@@ -193,16 +199,25 @@ export class Compose {
     this._onRemove?.(this)
   }
 
+  refreshMachineContainer() {
+    const machine = PodmanManager.machine.find((m) => m.name === PodmanManager.tab)
+    if (machine) {
+      machine.fetchContainers()
+    }
+  }
+
   checkRunningStatus() {
     IPC.send(
       'app-fork:podman',
       'isComposeRunning',
       JSON.parse(JSON.stringify(this.paths)),
-      this.flag
+      this.flag,
+      PodmanManager.currentSocket()
     ).then((key: string, res: any) => {
       IPC.off(key)
       if (res?.code === 0) {
         this.run = res.data
+        this.refreshMachineContainer()
       } else {
         this.statusError = res?.msg ?? I18nT('base.fail')
       }

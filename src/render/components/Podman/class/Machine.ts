@@ -7,8 +7,10 @@ import { I18nT } from '@lang/index'
 import { ElMessageBox } from 'element-plus'
 import { Container } from '@/components/Podman/class/Container'
 import { Image } from '@/components/Podman/class/Image'
-import { XTermExec } from '@/util/XTermExec'
+import { XTermExec, XTermExecCache } from '@/util/XTermExec'
 import { reactiveBind } from '@/util/Index'
+import { dialog } from '@/util/NodeFn'
+import { AsyncComponentShow } from '@/util/AsyncComponent'
 
 export class Machine {
   name: string = ''
@@ -21,6 +23,9 @@ export class Machine {
   _onRemove?: CallbackFn
   fetched: boolean = false
   tab: string = 'Dashboard'
+  imageImporting = false
+  containerImporting = false
+  containerCreating = false
 
   ImageXTerm: XTermExec
   ContainerXTerm: XTermExec
@@ -32,7 +37,40 @@ export class Machine {
   }
 
   fetchImages() {
+    IPC.send('app-fork:podman', 'fetchImageList', this.name).then((key: string, res: any) => {
+      IPC.off(key)
+      if (res?.code === 0) {
+        const images = res?.data ?? []
+        for (const img of images) {
+          const find = this.images.find((s) => s.id === img.id)
+          if (!find) {
+            const image = reactiveBind(new Image(img))
+            image._onRemove = this.onImageRemove.bind(this)
+            this.images.push(image)
+          } else {
+            find.name = reactive(img.name)
+          }
+        }
+      }
+    })
+  }
 
+  fetchContainers() {
+    IPC.send('app-fork:podman', 'fetchContainerList', this.name).then((key: string, res: any) => {
+      IPC.off(key)
+      if (res?.code === 0) {
+        const containers = res?.data ?? []
+        for (const item of containers) {
+          const find = this.container.some((s) => s.id === item.id)
+          if (!find) {
+            const container = reactiveBind(new Container(item))
+            container.machineName = this.name
+            container._onRemove = this.onContainerRemove
+            this.container.unshift(container)
+          }
+        }
+      }
+    })
   }
 
   /**
@@ -59,11 +97,13 @@ export class Machine {
         }
         const images = res?.data?.images ?? []
         for (const img of images) {
-          const find = this.images.some((s) => s.id === img.id)
+          const find = this.images.find((s) => s.id === img.id)
           if (!find) {
             const image = reactiveBind(new Image(img))
             image._onRemove = this.onImageRemove.bind(this)
             this.images.push(image)
+          } else {
+            find.name = reactive(img.name)
           }
         }
       }
@@ -150,5 +190,50 @@ export class Machine {
         })
       })
       .catch()
+  }
+
+  imageImport() {
+    const id = `${this.name}-image-import`
+    const xtermExec = XTermExecCache?.[id]
+    if (xtermExec) {
+      import('@/components/XTermExecDialog/index.vue').then((res) => {
+        AsyncComponentShow(res.default, {
+          title: xtermExec.title,
+          item: xtermExec
+        }).then()
+      })
+      return
+    }
+    dialog
+      .showOpenDialog({
+        properties: ['openFile', 'showHiddenFiles']
+      })
+      .then(({ canceled, filePaths }: any) => {
+        if (canceled || filePaths.length === 0) {
+          return
+        }
+        this.imageImporting = true
+        const [path] = filePaths
+        const command = `podman load -i "${path}"`
+        const xtermExec = reactiveBind(new XTermExec())
+        xtermExec.cammand = [command]
+        xtermExec.wait().then(() => {
+          delete XTermExecCache[id]
+          this.imageImporting = false
+          this.fetchImages()
+        })
+        xtermExec.whenCancel().then(() => {
+          delete XTermExecCache[id]
+          this.imageImporting = false
+        })
+        xtermExec.title = I18nT('base.import')
+        XTermExecCache[id] = xtermExec
+        import('@/components/XTermExecDialog/index.vue').then((res) => {
+          AsyncComponentShow(res.default, {
+            title: xtermExec.title,
+            item: xtermExec
+          }).then()
+        })
+      })
   }
 }
