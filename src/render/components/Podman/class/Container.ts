@@ -1,13 +1,14 @@
 import type { ContainerPortItem } from '@/components/Podman/type'
 import type { CallbackFn } from '@shared/app'
 import IPC from '@/util/IPC'
-import { MessageError } from '@/util/Element'
+import { MessageError, MessageSuccess } from '@/util/Element'
 import { I18nT } from '@lang/index'
 import { ElMessageBox } from 'element-plus'
 import { XTermExec, XTermExecCache } from '@/util/XTermExec'
 import { AsyncComponentShow } from '@/util/AsyncComponent'
 import { reactiveBind } from '@/util/Index'
 import { dialog, shell } from '@/util/NodeFn'
+import { PodmanManager } from '@/components/Podman/class/Podman'
 
 export class Container {
   id: string = ''
@@ -78,7 +79,7 @@ export class Container {
       type: 'warning'
     })
       .then(() => {
-        IPC.send('app-fork:podman', 'containerRemove', this.name, this.machineName).then(
+        IPC.send('app-fork:podman', 'containerRemove', this.id, this.machineName).then(
           (key: string, res: any) => {
             IPC.off(key)
             if (res?.code === 0) {
@@ -125,6 +126,7 @@ export class Container {
     let xtermExec = XTermExecCache?.[this.id]
     if (!xtermExec) {
       xtermExec = reactiveBind(new XTermExec())
+      xtermExec.id = this.id
       const arr: string[] = ['podman start', this.id]
       const logs: string[] = ['podman logs', this.id]
       xtermExec.cammand = [arr.join(' '), logs.join(' ')]
@@ -163,6 +165,7 @@ export class Container {
     let xtermExec = XTermExecCache?.[this.id]
     if (!xtermExec) {
       xtermExec = reactiveBind(new XTermExec())
+      xtermExec.id = this.id
       const arr: string[] = ['podman stop', this.id]
       const logs: string[] = ['podman logs', this.id]
       xtermExec.cammand = [arr.join(' '), logs.join(' ')]
@@ -187,6 +190,7 @@ export class Container {
     let xtermExec = XTermExecCache?.[key]
     if (!xtermExec) {
       xtermExec = reactiveBind(new XTermExec())
+      xtermExec.id = key
       const logs: string[] = ['podman logs -f', this.id]
       xtermExec.cammand = [logs.join(' ')]
       xtermExec.wait().then(() => {
@@ -212,6 +216,7 @@ export class Container {
           item: xtermExec
         }).then()
       })
+      return
     }
 
     const name = this.name
@@ -226,8 +231,9 @@ export class Container {
         this.exporting = true
         const dir = filePath
         const id = this.id
-        const command = `podman save -o "${dir}" ${this.name}`
+        const command = `podman export ${this.id} > "${dir}"`
         const xtermExec = reactiveBind(new XTermExec())
+        xtermExec.id = id
         xtermExec.cammand = [command]
         xtermExec.wait().then(() => {
           delete XTermExecCache[id]
@@ -254,6 +260,83 @@ export class Container {
       AsyncComponentShow(res.default, {
         item: this
       }).then()
+    })
+  }
+
+  showExecCommand() {
+    const key = `${this.id}-ExecCommand`
+    let xtermExec = XTermExecCache?.[key]
+    console.log('showExecCommand: ', key, xtermExec, XTermExecCache)
+    if (xtermExec) {
+      import('@/components/XTermExecDialog/index.vue').then((res) => {
+        AsyncComponentShow(res.default, {
+          title: xtermExec.title,
+          item: xtermExec
+        }).then()
+      })
+      return
+    }
+
+    xtermExec = XTermExecCache?.[key]
+    if (!xtermExec) {
+      xtermExec = reactiveBind(new XTermExec())
+      xtermExec.id = key
+      xtermExec.whenCancel().then(() => {
+        delete XTermExecCache?.[key]
+      })
+      XTermExecCache[key] = xtermExec
+    }
+    import('@/components/XTermExecDialog/index.vue').then((res) => {
+      AsyncComponentShow(res.default, {
+        title: this.name + ' ' + I18nT('podman.ExecCommand'),
+        item: xtermExec,
+        showCommand: `podman exec -it ${this.id} `
+      }).then()
+    })
+  }
+
+  doCommitToImage() {
+    const xtermExec = XTermExecCache?.[this.id]
+    if (xtermExec) {
+      import('@/components/XTermExecDialog/index.vue').then((res) => {
+        AsyncComponentShow(res.default, {
+          title: xtermExec.title,
+          item: xtermExec
+        }).then()
+      })
+      return
+    }
+
+    ElMessageBox.prompt(I18nT('podman.ImageName'), I18nT('podman.CommitToImage'), {
+      confirmButtonText: I18nT('base.confirm'),
+      cancelButtonText: I18nT('base.cancel'),
+      inputValue: `${this.name[0]}:latest`
+    }).then(({ value }) => {
+      const id = this.id
+      const command = `podman commit ${this.id} ${value}`
+      const xtermExec = reactiveBind(new XTermExec())
+      xtermExec.id = id
+      xtermExec.cammand = [command]
+      xtermExec.wait().then(() => {
+        MessageSuccess(I18nT('base.success'))
+        delete XTermExecCache[id]
+        const machine = PodmanManager.machine.find((m) => m.name === PodmanManager.tab)
+        if (machine) {
+          machine.fetchImages()
+          machine.tab = 'Image'
+        }
+      })
+      xtermExec.whenCancel().then(() => {
+        delete XTermExecCache[id]
+      })
+      xtermExec.title = I18nT('base.export')
+      XTermExecCache[id] = xtermExec
+      import('@/components/XTermExecDialog/index.vue').then((res) => {
+        AsyncComponentShow(res.default, {
+          title: I18nT('podman.CommitToImage'),
+          item: xtermExec
+        }).then()
+      })
     })
   }
 }

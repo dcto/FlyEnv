@@ -34,37 +34,30 @@ import type update from './zh/update.json'
 import type util from './zh/util.json'
 import type versionmanager from './zh/versionmanager.json'
 
-import ar from 'element-plus/es/locale/lang/ar'
-import de from 'element-plus/es/locale/lang/de'
-import en from 'element-plus/es/locale/lang/en'
-import es from 'element-plus/es/locale/lang/es'
-import fr from 'element-plus/es/locale/lang/fr'
-import id from 'element-plus/es/locale/lang/id'
-import it from 'element-plus/es/locale/lang/it'
-import ja from 'element-plus/es/locale/lang/ja'
-import pt from 'element-plus/es/locale/lang/pt'
-import ptBr from 'element-plus/es/locale/lang/pt-br'
-import sv from 'element-plus/es/locale/lang/sv'
-import tr from 'element-plus/es/locale/lang/tr'
-import ua from 'element-plus/es/locale/lang/uk'
-import vi from 'element-plus/es/locale/lang/vi'
-import zhCn from 'element-plus/es/locale/lang/zh-cn'
-import az from 'element-plus/es/locale/lang/az'
-
 import AR from './ar/index'
+import AZ from './az/index'
+import BN from './bn/index'
+import CS from './cs/index'
+import DA from './da/index'
 import DE from './de/index'
+import EL from './el/index'
 import EN from './en/index'
 import ES from './es/index'
+import FI from './fi/index'
 import FR from './fr/index'
 import ID from './id/index'
 import IT from './it/index'
 import JA from './ja/index'
+import NL from './nl/index'
+import NO from './no/index'
+import PL from './pl/index'
 import PT from './pt/index'
 import PTBR from './pt-br/index'
+import RO from './ro/index'
+import RU from './ru/index'
 import SV from './sv/index'
 import TR from './tr/index'
-import UA from './ua/index'
-import AZ from './az/index'
+import UK from './uk/index'
 import VI from './vi/index'
 import ZH from './zh/index'
 
@@ -114,61 +107,62 @@ type LangKey =
   | AppendStringToKeys<typeof util, 'util'>
   | AppendStringToKeys<typeof versionmanager, 'versionmanager'>
 
-export const AppAllLang = {
+export const AppAllLang: Record<string, string> = {
   ar: 'العربية',
-  de: 'Deutsch',
-  en: 'English',
-  zh: '中文',
   az: 'Azərbaycanca',
+  bn: 'বাংলা',
+  cs: 'Čeština',
+  da: 'Dansk',
+  de: 'Deutsch',
+  el: 'Ελληνικά',
+  en: 'English',
   es: 'Español',
+  fi: 'Suomi',
   fr: 'Français',
   id: 'Bahasa Indonesia',
   it: 'Italiano',
   ja: '日本語',
+  nl: 'Nederlands',
+  no: 'Norsk',
+  pl: 'Polski',
   pt: 'Português',
   'pt-br': 'Português (Brasil)',
+  ro: 'Romainiană',
+  ru: 'Русский',
   sv: 'Svenska',
   tr: 'Türkçe',
-  ua: 'Українська',
-  vi: 'Tiếng Việt'
+  uk: 'Українська',
+  vi: 'Tiếng Việt',
+  zh: '中文'
 }
 
 const lang = {
   ...AR,
   ...AZ,
+  ...BN,
+  ...CS,
+  ...DA,
   ...DE,
+  ...EL,
   ...EN,
   ...ES,
+  ...FI,
   ...FR,
   ...ID,
   ...IT,
   ...JA,
+  ...NL,
+  ...NO,
+  ...PL,
   ...PT,
   ...PTBR,
+  ...RO,
+  ...RU,
   ...SV,
   ...TR,
-  ...UA,
+  ...UK,
   ...VI,
   ...ZH
-}
-
-export const ElementPlusLang: any = {
-  ar: ar,
-  az: az,
-  de: de,
-  en: en,
-  es: es,
-  fr: fr,
-  id: id,
-  it: it,
-  ja: ja,
-  pt: pt,
-  'pt-br': ptBr,
-  sv: sv,
-  tr: tr,
-  ua: ua,
-  vi: vi,
-  zh: zhCn
 }
 
 let i18n: I18n

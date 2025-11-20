@@ -7,7 +7,7 @@
         : I18nT('podman.Container') + I18nT('base.add')
     "
     class="el-dialog-content-flex-1 h-[75%] dark:bg-[#1d2033]"
-    width="700px"
+    width="600px"
     @closed="closedFn"
   >
     <el-scrollbar class="px-2">
@@ -34,7 +34,7 @@
             <el-option
               v-for="img in images"
               :key="img.id"
-              :label="img.name.join(',')"
+              :label="img.name.length ? img.name.join(',') : img.id"
               :value="img.id"
             />
           </el-select>
@@ -346,7 +346,14 @@
       const arr: string[] = [`docker-compose -f ${form.value.dir}`]
       const logs: string[] = [...arr, 'logs']
       arr.push('up -d')
-      xtermExec.cammand = [arr.join(' '), logs.join(' ')]
+      const cammand = [arr.join(' '), logs.join(' ')]
+
+      if (window.Server.isLinux || window.Server.isMacOS) {
+        const socket = PodmanManager.currentSocket()
+        cammand.unshift(`export DOCKER_HOST=unix://${socket}`)
+      }
+
+      xtermExec.cammand = cammand
       xtermExec.wait().then(() => {
         delete XTermExecCache?.[id]
         machine.value?.fetchContainers?.()

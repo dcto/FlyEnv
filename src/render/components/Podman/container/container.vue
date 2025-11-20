@@ -9,14 +9,6 @@
           </template>
         </template>
       </el-button>
-      <el-button size="small" class="flex-shrink-0" @click="importContainer()">
-        <template #default>
-          <span>{{ I18nT('base.import') }}</span>
-          <template v-if="machine?.containerImporting">
-            <el-button link loading></el-button>
-          </template>
-        </template>
-      </el-button>
     </div>
     <el-table
       border
@@ -105,8 +97,14 @@
                   <el-dropdown-item @click.stop="scope.row.showLogsWithTerminal()">
                     {{ I18nT('base.log') }}
                   </el-dropdown-item>
+                  <el-dropdown-item @click.stop="scope.row.showExecCommand()">
+                    {{ I18nT('podman.ExecCommand') }}
+                  </el-dropdown-item>
                   <el-dropdown-item @click.stop="scope.row.doExport()">
                     {{ I18nT('base.export') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item @click.stop="scope.row.doCommitToImage()">
+                    {{ I18nT('podman.CommitToImage') }}
                   </el-dropdown-item>
                   <el-dropdown-item @click.stop="scope.row.remove()">
                     {{ I18nT('podman.Delete') }}
@@ -158,10 +156,6 @@
       return
     }
     AsyncComponentShow(ContainerAddVM).then()
-  }
-
-  const importContainer = () => {
-    machine.value?.containerImport?.()
   }
 
   const doCopy = (txt: string) => {
